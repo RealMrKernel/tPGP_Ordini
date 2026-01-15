@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Pork Grill Project - Ordini Abbigliamento</title>
+  <meta name="description" content="Ordina il tuo abbigliamento personalizzato The Pork Grill Project">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // ════════════════════════════════════════════════════════════════
+    // INCOLLA QUI IL CODICE REACT DALL'ARTIFACT SOPRA
+    // ════════════════════════════════════════════════════════════════
+    import React, { useState } from 'react';
+import { ShoppingCart, Mail, Phone, User, CreditCard, Package, Check, AlertCircle } from 'lucide-react';
+
+const OrderForm = () => {
+  const [formData, setFormData] = useState({
+    nome: '',
+    cognome: '',
+    email: '',
+    telefono: '',
+    numeroTessera: '',
+    pagamento: 'contanti',
+    website: '' // Honeypot field
+  });
+
+  const [ordini, setOrdini] = useState([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // ⚠️ IMPORTANTE: Sostituisci questo URL con quello del tuo Google Apps Script
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzk_KXts3LjFxhv_ml8VV10PNDH-pkjhH8RtWKvX1RBqQxLj-UGVueNezhHm27XHLJqIA/exec';
+
+  const articoli = [
+    { 
+      nome: 'T-shirt', 
+      prezzo: 10,
+      immagine: './images/tshirt.jpg'
+    },
+    { 
+      nome: 'Polo', 
+      prezzo: 20,
+      immagine: './images/polo.jpg'
+    },
+    { 
+      nome: 'Felpa', 
+      prezzo: 25,
+      immagine: './images/felpa.jpg'
+    },
+    { 
+      nome: 'Giubbotto smanicato', 
+      prezzo: 40,
+      immagine: './images/giubbotto.jpg'
+    },
+    { 
+      nome: 'Grembiule', 
+      prezzo: 15,
+      immagine: './images/grembiule.jpg'
+    }
+  ];
+
+  const taglie = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+
+  const aggiungiArticolo = (articolo, taglia, quantita) => {
+    if (quantita <= 0) return;
+    
+    const nuovoOrdine = {
+      articolo: articolo.nome,
+      taglia,
+      quantita: parseInt(quantita),
+      prezzoUnitario: articolo.prezzo,
+      totale: articolo.prezzo * parseInt(quantita)
+    };
+
+    setOrdini([...ordini, nuovoOrdine]);
+  };
+
+  const rimuoviArticolo = (index) => {
+    setOrdini(ordini.filter((_, i) => i !== index));
+  };
+
+  const calcolaTotale = () => {
+    return ordini.reduce((sum, item) => sum + item.totale, 0);
+  };
+
+  // Validazione client-side
+  const validateForm = () => {
+    // Honeypot check - se compilato è un bot
+    if (formData.website) {
+      console.log('Bot detected via honeypot');
+      return false;
+    }
+
+    // Validazione email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Inserisci un indirizzo email valido');
+      return false;
+    }
+
+    // Validazione telefono
+    const phoneRegex = /^[0-9+\s()-]{8,20}$/;
+    if (!phoneRegex.test(formData.telefono)) {
+      setError('Inserisci un numero di telefono valido (8-20 cifre)');
+      return false;
+    }
+
+    // Validazione nome e cognome
+    if (formData.nome.length < 2 || formData.cognome.length < 2) {
+      setError('Nome e cognome devono avere almeno 2 caratteri');
+      return false;
+    }
+
+    // Validazione totale ragionevole
+    const totale = calcolaTotale();
+    if (totale < 10 || totale > 10000) {
+      setError('Il totale dell\'ordine non è valido');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+
+    if (!formData.nome || !formData.cognome || !formData.email || !formData.telefono) {
+      setError('Compila tutti i campi obbligatori');
+      return;
+    }
+    
+    if (ordini.length === 0) {
+      setError('Aggiungi almeno un articolo al carrello');
+      return;
+    }
+
+    // Validazione completa
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const timestamp = new Date().toISOString();
+      
+      // Prepara i dati per Google Apps Script
+      // Lo script si occuperà sia di salvare che di inviare le email
+      const orderData = {
+        timestamp,
+        nome: formData.nome,
+        cognome: formData.cognome,
+        email: formData.email,
+        telefono: formData.telefono,
+        numeroTessera: formData.numeroTessera || 'N/A',
+        pagamento: formData.pagamento,
+        ordini: JSON.stringify(ordini),
+        totale: calcolaTotale(),
+        statoOrdine: 'Da ordinare',
+        statoRicezione: 'Non ricevuto',
+        statoConsegna: 'Non consegnato',
+        statoPagamento: 'Non pagato'
+      };
+
+      // Invia a Google Apps Script
+      // Lo script salverà nel foglio e invierà le email automaticamente
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Necessario per Apps Script
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      // Con mode: 'no-cors' non possiamo leggere la risposta
+      // ma se arriviamo qui senza errori, l'invio è andato a buon fine
+      
+      console.log('Ordine inviato con successo:', orderData);
+      setSubmitted(true);
+      
+    } catch (error) {
+      console.error('Errore durante l\'invio:', error);
+      setError('Si è verificato un errore durante l\'invio dell\'ordine. Riprova o contattaci direttamente a ordini@theporkgrillproject.it');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-green-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-10 h-10 text-green-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Ordine Confermato!</h2>
+          <p className="text-gray-300 mb-4">
+            Grazie {formData.nome}! Riceverai una email di conferma con i dettagli del tuo ordine all'indirizzo {formData.email}
+          </p>
+          <p className="text-sm text-gray-400 mb-6">
+            Se non ricevi l'email entro pochi minuti, controlla la cartella spam o contattaci a ordini@theporkgrillproject.it
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Nuovo Ordine
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6 mb-6">
+          <div className="flex flex-col items-center">
+            <img 
+              src="./images/logo.png" 
+              alt="The Pork Grill Project Logo"
+              className="h-32 w-auto mb-4"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'block';
+              }}
+            />
+            <div style={{display: 'none'}}>
+              <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
+                <Package className="text-red-600" />
+                The Pork Grill Project
+              </h1>
+            </div>
+            <p className="text-gray-300 text-center">Ordina il tuo abbigliamento personalizzato "The Pork Grill Project"</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-900 bg-opacity-50 border border-red-700 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-300">Errore</h3>
+              <p className="text-red-200">{error}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {/* Dati personali */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <User className="text-red-600" />
+              I tuoi dati
+            </h2>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Nome *
+                </label>
+                <input
+                  type="text"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Mario"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Cognome *
+                </label>
+                <input
+                  type="text"
+                  value={formData.cognome}
+                  onChange={(e) => setFormData({...formData, cognome: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Rossi"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+                  <Mail className="w-4 h-4" />
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="mario.rossi@example.com"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  Cellulare *
+                </label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="+39 123 456 7890"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Numero Tessera Associato
+                </label>
+                <input
+                  type="text"
+                  value={formData.numeroTessera}
+                  onChange={(e) => setFormData({...formData, numeroTessera: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Opzionale"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+                  <CreditCard className="w-4 h-4" />
+                  Metodo di pagamento *
+                </label>
+                <select
+                  value={formData.pagamento}
+                  onChange={(e) => setFormData({...formData, pagamento: e.target.value})}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="contanti">Contanti alla consegna</option>
+                  <option value="bonifico">Bonifico bancario</option>
+                </select>
+              </div>
+
+              {/* Honeypot field - invisibile agli umani, trappola per i bot */}
+              <input
+                type="text"
+                name="website"
+                value={formData.website}
+                onChange={(e) => setFormData({...formData, website: e.target.value})}
+                style={{
+                  position: 'absolute',
+                  left: '-9999px',
+                  width: '1px',
+                  height: '1px'
+                }}
+                tabIndex="-1"
+                autoComplete="off"
+                aria-hidden="true"
+              />
+            </div>
+          </div>
+
+          {/* Selezione articoli */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <ShoppingCart className="text-red-600" />
+              Seleziona gli articoli
+            </h2>
+            
+            {articoli.map((articolo) => (
+              <ArticoloSelector
+                key={articolo.nome}
+                articolo={articolo}
+                taglie={taglie}
+                onAggiungi={aggiungiArticolo}
+              />
+            ))}
+          </div>
+
+          {/* Riepilogo */}
+          {ordini.length > 0 && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Riepilogo Ordine</h2>
+              
+              <div className="space-y-2 mb-4">
+                {ordini.map((ordine, index) => (
+                  <div key={index} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                    <div>
+                      <span className="font-medium text-white">{ordine.articolo}</span>
+                      <span className="text-gray-300"> - Taglia {ordine.taglia}</span>
+                      <span className="text-gray-300"> × {ordine.quantita}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-white">€{ordine.totale.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={() => rimuoviArticolo(index)}
+                        className="text-red-400 hover:text-red-300 text-sm transition-colors"
+                      >
+                        Rimuovi
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="border-t border-gray-600 pt-4">
+                <div className="flex justify-between items-center text-xl font-bold">
+                  <span className="text-white">TOTALE:</span>
+                  <span className="text-red-500">€{calcolaTotale().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading || ordini.length === 0}
+            className="w-full bg-red-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Invio in corso...' : 'Conferma Ordine'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ArticoloSelector = ({ articolo, taglie, onAggiungi }) => {
+  const [taglia, setTaglia] = useState('M');
+  const [quantita, setQuantita] = useState(0);
+
+  const handleAggiungi = () => {
+    if (quantita > 0) {
+      onAggiungi(articolo, taglia, quantita);
+      setQuantita(0);
+    }
+  };
+
+  return (
+    <div className="border-b border-gray-700 pb-4 mb-4 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-4">
+        <img 
+          src={articolo.immagine} 
+          alt={articolo.nome}
+          className="w-24 h-24 object-cover rounded-lg border-2 border-red-600 shadow-sm"
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/150/DC2626/FFFFFF?text=' + articolo.nome;
+          }}
+        />
+        <div className="flex-1 min-w-[200px]">
+          <h3 className="font-bold text-lg text-white">{articolo.nome}</h3>
+          <p className="text-red-500 font-bold">€{articolo.prezzo.toFixed(2)}</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-300">Taglia:</label>
+          <select
+            value={taglia}
+            onChange={(e) => setTaglia(e.target.value)}
+            className="px-3 py-1 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500"
+          >
+            {taglie.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-300">Quantità:</label>
+          <input
+            type="number"
+            min="0"
+            max="99"
+            value={quantita}
+            onChange={(e) => setQuantita(e.target.value)}
+            className="w-20 px-3 py-1 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-red-500"
+          />
+        </div>
+        
+        <button
+          type="button"
+          onClick={handleAggiungi}
+          disabled={quantita <= 0}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+        >
+          Aggiungi
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default OrderForm;
+
+    // Dopo aver incollato tutto il codice, aggiungi alla fine:
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<OrderForm />);
+  </script>
+</body>
+</html>
