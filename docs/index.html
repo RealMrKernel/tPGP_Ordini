@@ -21,6 +21,8 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    /** @jsx React.createElement */
+    /** @jsxFrag React.Fragment */
     // NOTE:
     // - Removed ES module import/export (can't use import/export inside type="text/babel" in the browser).
     // - Replaced lucide-react icon components with <i data-lucide="..."> placeholders and call window.lucide.replace()
@@ -44,7 +46,7 @@
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
 
-      // ⚠️ IMPORTANTE: Sostituisci questo URL con quello del tuo Google Apps Script
+      // ⚠️ IMPORTANTE: Sostituisci questo URL con quello del tuo Google Apps Script se diverso
       const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzk_KXts3LjFxhv_ml8VV10PNDH-pkjhH8RtWKvX1RBqQxLj-UGVueNezhHm27XHLJqIA/exec';
 
       const articoli = [
