@@ -115,12 +115,8 @@
           return false;
         }
 
-        // Validazione totale ragionevole
-        const totale = calcolaTotale();
-        if (totale < 10 || totale > 10000) {
-          setError('Il totale dell\'ordine non è valido');
-          return false;
-        }
+        // Non mostriamo i prezzi, quindi evitiamo di mostrare errori sul totale all'utente
+        // Il controllo del carrello vuoto c'è già in handleSubmit
 
         return true;
       };
@@ -387,7 +383,6 @@
                           <span className="text-gray-300"> × {ordine.quantita}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-white">€{ordine.totale.toFixed(2)}</span>
                           <button
                             type="button"
                             onClick={() => rimuoviArticolo(index)}
@@ -400,12 +395,7 @@
                     ))}
                   </div>
 
-                  <div className="border-t border-gray-600 pt-4">
-                    <div className="flex justify-between items-center text-xl font-bold">
-                      <span className="text-white">TOTALE:</span>
-                      <span className="text-red-500">€{calcolaTotale().toFixed(2)}</span>
-                    </div>
-                  </div>
+                  {/* Totale nascosto al pubblico */}
                 </div>
               )}
 
@@ -447,7 +437,6 @@
             />
             <div className="flex-1 min-w-[200px]">
               <h3 className="font-bold text-lg text-white">{articolo.nome}</h3>
-              <p className="text-red-500 font-bold">€{articolo.prezzo.toFixed(2)}</p>
             </div>
 
             <div className="flex items-center gap-2">
